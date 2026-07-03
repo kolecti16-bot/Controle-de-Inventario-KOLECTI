@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Controle de Ativos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/JsBarcode/3.11.5/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#F5F4EF;
+  --panel:#FFFFFF;
+  --ink:#1E241F;
+  --ink-soft:#5B6459;
+  --sidebar:#1B2420;
+  --sidebar-ink:#C8D2C6;
+  --moss:#3F6B4F;
+  --moss-dark:#2C4D38;
+  --moss-light:#E7EFE7;
+  --amber:#C97A2B;
+  --amber-light:#FBEDDD;
+  --red:#B4432F;
+  --red-light:#F8E7E2;
+  --line:#E4E1D8;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'IBM Plex Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:14px;}
+.app{display:flex;min-height:100vh;}
+
+/* SIDEBAR */
+.sidebar{width:220px;background:var(--sidebar);color:var(--sidebar-ink);flex-shrink:0;display:flex;flex-direction:column;padding:22px 14px;}
+.brand{font-weight:700;font-size:16px;color:#fff;letter-spacing:.3px;padding:0 8px 4px;}
+.brand span{color:#8FB89A;}
+.brand-sub{font-size:11px;color:#7C8A7C;padding:0 8px 22px;letter-spacing:.4px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 10px;border-radius:8px;cursor:pointer;font-size:13.5px;font-weight:500;color:var(--sidebar-ink);margin-bottom:2px;transition:background .15s;}
+.nav-item:hover{background:#26332B;}
+.nav-item.active{background:var(--moss);color:#fff;}
+.nav-icon{width:16px;text-align:center;font-size:14px;opacity:.9;}
+.sidebar-foot{margin-top:auto;font-size:11px;color:#657065;padding:10px 8px;line-height:1.5;}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;}
+.scanbar{background:var(--sidebar);padding:16px 28px 22px;}
+.scanbar-inner{background:#26332B;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;border:1px solid #34433A;}
+.scanbar-inner.hit{border-color:var(--moss);box-shadow:0 0 0 3px rgba(63,107,79,.35);}
+.scan-dot{width:9px;height:9px;border-radius:50%;background:#5A6B5C;flex-shrink:0;}
+.scan-dot.live{background:#7FD99A;box-shadow:0 0 8px #7FD99A;}
+#scanInput{flex:1;background:transparent;border:none;outline:none;color:#fff;font-family:var(--mono);font-size:16px;letter-spacing:.5px;}
+#scanInput::placeholder{color:#6E7B70;}
+.scan-hint{font-size:11px;color:#7C8A7C;font-family:var(--mono);}
+
+.content{padding:26px 28px 40px;overflow-y:auto;}
+.page-title{font-size:20px;font-weight:700;margin-bottom:4px;}
+.page-sub{font-size:13px;color:var(--ink-soft);margin-bottom:22px;}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.stat-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;}
+.stat-num{font-size:26px;font-weight:700;font-family:var(--mono);}
+.stat-label{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+.stat-card.warn .stat-num{color:var(--amber);}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:20px;}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);}
+.panel-head h3{font-size:14px;font-weight:600;}
+.toolbar{display:flex;gap:8px;padding:12px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap;align-items:center;}
+input[type=text],input[type=date],input[type=number],select,textarea{
+  font-family:var(--sans);font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--moss);}
+.btn{font-family:var(--sans);font-size:13px;font-weight:600;padding:9px 14px;border-radius:7px;border:none;cursor:pointer;transition:.15s;}
+.btn-primary{background:var(--moss);color:#fff;}
+.btn-primary:hover{background:var(--moss-dark);}
+.btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink);}
+.btn-ghost:hover{background:var(--moss-light);}
+.btn-sm{padding:5px 10px;font-size:12px;}
+
+table{width:100%;border-collapse:collapse;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-soft);padding:10px 14px;border-bottom:1px solid var(--line);background:#FAFAF7;}
+td{padding:11px 14px;border-bottom:1px solid var(--line);font-size:13px;}
+tr:last-child td{border-bottom:none;}
+tr.tbl-row:hover{background:#FAFAF7;cursor:pointer;}
+.code{font-family:var(--mono);font-weight:600;color:var(--moss-dark);}
+.tag{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--moss-light);color:var(--moss-dark);}
+.badge-status{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-ativo{background:var(--moss-light);color:var(--moss-dark);}
+.badge-manutencao{background:var(--amber-light);color:var(--amber);}
+.badge-baixado{background:var(--red-light);color:var(--red);}
+.empty{padding:40px;text-align:center;color:var(--ink-soft);font-size:13px;}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(20,25,20,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;}
+.overlay.show{display:flex;}
+.modal{background:#fff;border-radius:12px;width:560px;max-width:100%;max-height:90vh;overflow-y:auto;padding:24px;}
+.modal h3{font-size:16px;margin-bottom:16px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-grid .full{grid-column:1/-1;}
+.form-grid label{display:block;font-size:11px;font-weight:600;color:var(--ink-soft);margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px;}
+.form-grid input,.form-grid select,.form-grid textarea{width:100%;}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;}
+.close-x{position:absolute;top:18px;right:18px;cursor:pointer;color:var(--ink-soft);font-size:18px;background:none;border:none;}
+.modal{position:relative;}
+
+.label-preview{border:1.5px dashed var(--line);border-radius:8px;padding:16px;text-align:center;margin-top:14px;}
+.label-preview svg{max-width:100%;}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:12px 18px;border-radius:8px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.2);z-index:100;opacity:0;transform:translateY(10px);transition:.2s;}
+.toast.show{opacity:1;transform:translateY(0);}
+
+.hidden{display:none !important;}
+@media print{
+  body *{visibility:hidden;}
+  #printArea, #printArea *{visibility:visible;}
+  #printArea{position:absolute;top:0;left:0;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="sidebar">
+    <div class="brand" style="padding: 0 8px 8px; margin-top: -10px;">
+  <img src="https://drive.google.com/uc?export=view&id=1KTw6_A67mrNvtLIgjNXQPsQ8NU-xybla" alt="Kolecti" style="max-width: 140px; height: auto;">
+</div>
+    <div class="brand-sub">Controle Patrimonial</div>
+    <div class="nav-item active" data-page="dashboard"><span class="nav-icon">◆</span>Dashboard</div>
+    <div class="nav-item" data-page="lista"><span class="nav-icon">≡</span>Todos os Ativos</div>
+    <div class="nav-item" data-page="conferencia"><span class="nav-icon">✓</span>Modo Conferência</div>
+    <div class="nav-item" data-page="cadastrar"><span class="nav-icon">+</span>Cadastrar Ativo</div>
+    <div class="sidebar-foot">Conectado à planilha Google Sheets. Dados sincronizados automaticamente entre todos que acessam.</div>
+  </div>
+
+  <div class="main">
+    <div class="scanbar">
+      <div class="scanbar-inner" id="scanWrap">
+        <div class="scan-dot" id="scanDot"></div>
+        <input id="scanInput" type="text" placeholder="Clique aqui e escaneie o código de barras (ou digite o código e Enter)" autocomplete="off">
+        <div class="scan-hint" id="scanHint">aguardando leitura…</div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0;">
+  <button class="btn btn-ghost btn-sm" id="btnRefresh" type="button" style="color:#C8D2C6;border-color:#3A473D; width:100%;">↻ Atualizar</button>
+  <div id="lastUpdateText" style="font-size:10px; color:#7C8A7C; font-family:var(--mono); white-space:nowrap;">atualizando...</div>
+</div>
+      </div>
+    </div>
+
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<div class="overlay" id="modalOverlay">
+  <div class="modal" id="modalBody"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="printArea"></div>
+
+<script>
+const CATS = ["Móveis","Computadores","Periféricos","TV/Monitores","Materiais de Operação","Outros"];
+const STATUS = ["Ativo","Em Manutenção","Baixado"];
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbzk6SrlqKmgGUFSyR1y3MiMoH71V64BC8m30o8Njf3qgerotu5Ktj3HiFPooA3TxKui/exec";
+let ativos = {};
+let currentPage = 'dashboard';
+let editingCode = null;
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(window._tt);
+  window._tt=setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+function normalizeItem(obj){
+  if(obj.dataAquisicao && typeof obj.dataAquisicao === 'string' && obj.dataAquisicao.includes('T')){
+    obj.dataAquisicao = obj.dataAquisicao.slice(0,10);
+  }
+  if(obj.codigo !== undefined && obj.codigo !== null) obj.codigo = String(obj.codigo);
+  if(!obj.ultimaConferencia) obj.ultimaConferencia = null;
+  if(obj.valor === '' || obj.valor === undefined) obj.valor = 0;
+  return obj;
+}
+
+async function loadAll(silent){
+  try{
+    const res = await fetch(SHEET_URL, {method:'GET'});
+    const json = await res.json();
+    const novo = {};
+    if(json.status === 'ok'){
+      json.data.forEach(obj=>{
+        if(!obj.codigo && obj.codigo !== 0) return;
+        novo[String(obj.codigo)] = normalizeItem(obj);
+      });
+    }
+    ativos = novo;
+    render();
+  }catch(e){
+    if(!silent) toast('Não foi possível conectar à planilha do Google.');
+  }
+}
+
+async function saveAtivo(obj){
+  ativos[obj.codigo] = obj;
+  try{
+    await fetch(SHEET_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({action:'upsert', item: obj})
+    });
+  }catch(e){
+    toast('Erro ao gravar na planilha do Google.');
+  }
+}
+
+async function deleteAtivo(codigo){
+  delete ativos[codigo];
+  try{
+    await fetch(SHEET_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({action:'delete', codigo})
+    });
+  }catch(e){
+    toast('Erro ao excluir na planilha do Google.');
+  }
+}
+
+function fmtMoney(v){
+  if(!v && v!==0) return '—';
+  return 'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function badgeClass(s){
+  if(s==='Ativo') return 'badge-ativo';
+  if(s==='Em Manutenção') return 'badge-manutencao';
+  return 'badge-baixado';
+}
+
+// ---------- NAV ----------
+document.querySelectorAll('.nav-item').forEach(el=>{
+  el.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    el.classList.add('active');
+    currentPage = el.dataset.page;
+    render();
+    loadAll(true);
+  });
+});
+
+// ---------- SCAN INPUT ----------
+const scanInput = document.getElementById('scanInput');
+const scanWrap = document.getElementById('scanWrap');
+const scanDot = document.getElementById('scanDot');
+const scanHint = document.getElementById('scanHint');
+scanInput.focus();
+document.addEventListener('click', (e)=>{
+  if(!document.getElementById('modalOverlay').classList.contains('show') && !e.target.closest('input,select,textarea,button')){
+    scanInput.focus();
+  }
+});
+
+scanInput.addEventListener('input', ()=>{
+  scanDot.classList.add('live');
+  scanWrap.classList.add('hit');
+  scanHint.textContent = 'lendo…';
+});
+
+scanInput.addEventListener('keydown', (e)=>{
+  if(e.key==='Enter'){
+    const code = scanInput.value.trim();
+    scanInput.value='';
+    scanDot.classList.remove('live');
+    scanWrap.classList.remove('hit');
+    if(!code) return;
+    handleScan(code);
+  }
+});
+
+async function handleScan(code){
+  if(ativos[code]){
+    ativos[code].ultimaConferencia = new Date().toISOString();
+    await saveAtivo(ativos[code]);
+    scanHint.textContent = '✓ encontrado — conferido agora';
+    toast('Ativo "'+ativos[code].descricao+'" conferido com sucesso.');
+    if(currentPage==='conferencia' || currentPage==='lista') render();
+  }else{
+    scanHint.textContent = 'código novo — cadastre abaixo';
+    openModal(null, code);
+  }
+  setTimeout(()=>{scanHint.textContent='aguardando leitura…'; scanInput.focus();}, 2500);
+}
+
+// ---------- RENDER ----------
+function render(){
+  const c = document.getElementById('content');
+  if(currentPage==='dashboard') c.innerHTML = renderDashboard();
+  if(currentPage==='lista') c.innerHTML = renderLista();
+  if(currentPage==='conferencia') c.innerHTML = renderConferencia();
+  if(currentPage==='cadastrar') c.innerHTML = renderCadastro();
+  attachPageEvents();
+}
+
+function renderDashboard(){
+  const list = Object.values(ativos);
+  const total = list.length;
+  const manut = list.filter(a=>a.status==='Em Manutenção').length;
+  const valorTotal = list.reduce((s,a)=>s+(Number(a.valor)||0),0);
+  const hoje = new Date().toDateString();
+  const conferidosHoje = list.filter(a=>a.ultimaConferencia && new Date(a.ultimaConferencia).toDateString()===hoje).length;
+
+  const porCategoria = {};
+  CATS.forEach(c=>porCategoria[c]=0);
+  list.forEach(a=>{ porCategoria[a.categoria] = (porCategoria[a.categoria]||0)+1; });
+
+  const recentes = list.slice().sort((a,b)=>new Date(b.criadoEm)-new Date(a.criadoEm)).slice(0,6);
+
+  return `
+    <div class="page-title">Dashboard</div>
+    <div class="page-sub">Visão geral dos ativos cadastrados.</div>
+    <div class="stats">
+      <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">Total de ativos</div></div>
+      <div class="stat-card warn"><div class="stat-num">${manut}</div><div class="stat-label">Em manutenção</div></div>
+      <div class="stat-card"><div class="stat-num">${fmtMoney(valorTotal)}</div><div class="stat-label">Valor total estimado</div></div>
+      <div class="stat-card"><div class="stat-num">${conferidosHoje}</div><div class="stat-label">Conferidos hoje</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Ativos por categoria</h3></div>
+      <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px;">
+        ${CATS.map(c=>{
+          const n = porCategoria[c]||0;
+          const pct = total? Math.round(n/total*100):0;
+          return `<div>
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;"><span>${c}</span><span style="color:var(--ink-soft)">${n}</span></div>
+            <div style="background:#EFEEE7;border-radius:6px;height:7px;overflow:hidden;"><div style="width:${pct}%;background:var(--moss);height:100%;"></div></div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Cadastrados recentemente</h3></div>
+      ${recentes.length? `<table><thead><tr><th>Código</th><th>Descrição</th><th>Categoria</th><th>Status</th></tr></thead><tbody>
+        ${recentes.map(a=>`<tr><td class="code">${a.codigo}</td><td>${a.descricao}</td><td>${a.categoria}</td><td><span class="badge-status ${badgeClass(a.status)}">${a.status}</span></td></tr>`).join('')}
+      </tbody></table>` : `<div class="empty">Nenhum ativo cadastrado ainda. Escaneie um código acima ou clique em "Cadastrar Ativo".</div>`}
+    </div>
+  `;
+}
+
+function renderLista(){
+  const list = Object.values(ativos).sort((a,b)=>a.descricao.localeCompare(b.descricao));
+  return `
+    <div class="page-title">Todos os Ativos</div>
+    <div class="page-sub">${list.length} ativo(s) cadastrado(s).</div>
+    <div class="panel">
+      <div class="toolbar">
+        <input type="text" id="searchBox" placeholder="Buscar por descrição, código, local..." style="width:260px;">
+        <select id="filterCat"><option value="">Todas categorias</option>${CATS.map(c=>`<option>${c}</option>`).join('')}</select>
+        <select id="filterStatus"><option value="">Todos status</option>${STATUS.map(s=>`<option>${s}</option>`).join('')}</select>
+        <div style="flex:1"></div>
+        <button class="btn btn-ghost btn-sm" id="btnExport">Exportar Excel</button>
+        <button class="btn btn-primary btn-sm" id="btnNovo">+ Novo Ativo</button>
+      </div>
+      <div id="tableWrap">${tableHtml(list)}</div>
+    </div>
+  `;
+}
+
+function tableHtml(list){
+  if(!list.length) return `<div class="empty">Nenhum ativo encontrado.</div>`;
+  return `<table><thead><tr><th>Código</th><th>Descrição</th><th>Categoria</th><th>Local</th><th>Responsável</th><th>Status</th><th>Valor</th></tr></thead><tbody>
+    ${list.map(a=>`<tr class="tbl-row" data-code="${a.codigo}"><td class="code">${a.codigo}</td><td>${a.descricao}</td><td><span class="tag">${a.categoria}</span></td><td>${a.localizacao||'—'}</td><td>${a.responsavel||'—'}</td><td><span class="badge-status ${badgeClass(a.status)}">${a.status}</span></td><td>${fmtMoney(a.valor)}</td></tr>`).join('')}
+  </tbody></table>`;
+}
+
+function renderConferencia(){
+  const list = Object.values(ativos);
+  const hoje = new Date().toDateString();
+  const conferidos = list.filter(a=>a.ultimaConferencia && new Date(a.ultimaConferencia).toDateString()===hoje);
+  const pendentes = list.filter(a=>!(a.ultimaConferencia && new Date(a.ultimaConferencia).toDateString()===hoje));
+  return `
+    <div class="page-title">Modo Conferência</div>
+    <div class="page-sub">Escaneie os ativos fisicamente para marcar como conferidos hoje. Códigos não cadastrados abrem o formulário de cadastro automaticamente.</div>
+    <div class="stats" style="grid-template-columns:repeat(2,1fr);">
+      <div class="stat-card"><div class="stat-num">${conferidos.length}</div><div class="stat-label">Conferidos hoje</div></div>
+      <div class="stat-card warn"><div class="stat-num">${pendentes.length}</div><div class="stat-label">Ainda pendentes</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Pendentes de conferência</h3></div>
+      ${tableHtml(pendentes)}
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Conferidos hoje</h3></div>
+      ${tableHtml(conferidos)}
+    </div>
+  `;
+}
+
+function renderCadastro(){
+  return `
+    <div class="page-title">Cadastrar Ativo</div>
+    <div class="page-sub">Preencha manualmente ou escaneie um código novo no campo do topo.</div>
+    <div class="panel" style="padding:20px;">${formHtml(null,'')}</div>
+  `;
+}
+
+function formHtml(existing, prefillCode){
+  const a = existing || {codigo:prefillCode||'', descricao:'', categoria:CATS[0], marca:'', numeroSerie:'', localizacao:'', responsavel:'', dataAquisicao:'', valor:'', status:'Ativo', observacoes:''};
+  return `
+    <div class="form-grid">
+      <div><label>Código / Patrimônio</label><input type="text" id="f_codigo" value="${a.codigo}" ${existing?'readonly':''} placeholder="ex: KLT-000123"></div>
+      <div><label>Categoria</label><select id="f_categoria">${CATS.map(c=>`<option ${c===a.categoria?'selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="full"><label>Descrição</label><input type="text" id="f_descricao" value="${a.descricao}" placeholder="ex: Notebook Dell Latitude 5440"></div>
+      <div><label>Marca / Modelo</label><input type="text" id="f_marca" value="${a.marca}"></div>
+      <div><label>Número de série</label><input type="text" id="f_serie" value="${a.numeroSerie}"></div>
+      <div><label>Localização / Setor</label><input type="text" id="f_local" value="${a.localizacao}" placeholder="ex: Escritório Videira - RH"></div>
+      <div><label>Responsável</label><input type="text" id="f_resp" value="${a.responsavel}"></div>
+      <div><label>Data de aquisição</label><input type="date" id="f_data" value="${a.dataAquisicao}"></div>
+      <div><label>Valor (R$)</label><input type="number" step="0.01" id="f_valor" value="${a.valor}"></div>
+      <div><label>Status</label><select id="f_status">${STATUS.map(s=>`<option ${s===a.status?'selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="full"><label>Observações</label><textarea id="f_obs" rows="2">${a.observacoes}</textarea></div>
+    </div>
+    <div class="label-preview">
+      <div style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;">Etiqueta de código de barras</div>
+      <svg id="barcodeSvg"></svg>
+      <div style="margin-top:8px;"><button class="btn btn-ghost btn-sm" id="btnPrintLabel" type="button">Imprimir etiqueta</button></div>
+    </div>
+  `;
+}
+
+function drawBarcode(code){
+  const svg = document.getElementById('barcodeSvg');
+  if(!svg) return;
+  const val = code && code.trim() ? code.trim() : '0000000000';
+  try{
+    JsBarcode(svg, val, {format:"CODE128", width:2, height:50, fontSize:13, margin:6});
+  }catch(e){}
+}
+
+// ---------- MODAL ----------
+function openModal(existingCode, prefillCode){
+  editingCode = existingCode;
+  const existing = existingCode ? ativos[existingCode] : null;
+  const body = document.getElementById('modalBody');
+  body.innerHTML = `
+    <button class="close-x" id="closeModal">✕</button>
+    <h3>${existing? 'Editar Ativo' : 'Novo Ativo'}${prefillCode? ' — código escaneado: '+prefillCode:''}</h3>
+    ${formHtml(existing, prefillCode)}
+    <div class="modal-actions">
+      ${existing? '<button class="btn btn-ghost" id="btnDelete">Excluir</button>':''}
+      <button class="btn btn-ghost" id="btnCancel">Cancelar</button>
+      <button class="btn btn-primary" id="btnSave">Salvar</button>
+    </div>
+  `;
+  document.getElementById('modalOverlay').classList.add('show');
+  drawBarcode(existing? existing.codigo : (prefillCode||''));
+  document.getElementById('f_codigo').addEventListener('input', (e)=>drawBarcode(e.target.value));
+  document.getElementById('closeModal').onclick = closeModal;
+  document.getElementById('btnCancel').onclick = closeModal;
+  document.getElementById('btnPrintLabel').onclick = ()=>printLabel(document.getElementById('f_codigo').value, document.getElementById('f_descricao').value);
+  document.getElementById('btnSave').onclick = onSaveForm;
+  if(existing){
+    document.getElementById('btnDelete').onclick = async ()=>{
+      if(confirm('Excluir este ativo?')){
+        await deleteAtivo(existing.codigo);
+        closeModal(); toast('Ativo excluído.'); render();
+      }
+    };
+  }
+}
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('show'); editingCode=null; }
+
+async function onSaveForm(){
+  const codigo = document.getElementById('f_codigo').value.trim();
+  if(!codigo){ alert('Informe o código do ativo.'); return; }
+  if(!editingCode && ativos[codigo]){ alert('Já existe um ativo com esse código.'); return; }
+  const obj = {
+    codigo,
+    descricao: document.getElementById('f_descricao').value.trim() || '(sem descrição)',
+    categoria: document.getElementById('f_categoria').value,
+    marca: document.getElementById('f_marca').value.trim(),
+    numeroSerie: document.getElementById('f_serie').value.trim(),
+    localizacao: document.getElementById('f_local').value.trim(),
+    responsavel: document.getElementById('f_resp').value.trim(),
+    dataAquisicao: document.getElementById('f_data').value,
+    valor: document.getElementById('f_valor').value,
+    status: document.getElementById('f_status').value,
+    observacoes: document.getElementById('f_obs').value.trim(),
+    criadoEm: (editingCode && ativos[editingCode]?.criadoEm) || new Date().toISOString(),
+    ultimaConferencia: (editingCode && ativos[editingCode]?.ultimaConferencia) || null
+  };
+  await saveAtivo(obj);
+  closeModal();
+  toast('Ativo salvo com sucesso.');
+  render();
+}
+
+function printLabel(code, desc){
+  const val = code && code.trim() ? code.trim() : '0000000000';
+  const area = document.getElementById('printArea');
+  area.innerHTML = `<div style="font-family:sans-serif;text-align:center;padding:10px;">
+    <div style="font-size:12px;font-weight:bold;">${desc||''}</div>
+    <svg id="printSvg"></svg>
+    </div>`;
+  JsBarcode('#printSvg', val, {format:"CODE128", width:2, height:55, fontSize:14, margin:4});
+  setTimeout(()=>window.print(), 150);
+}
+
+// ---------- PAGE EVENTS ----------
+function attachPageEvents(){
+  document.querySelectorAll('.tbl-row').forEach(row=>{
+    row.addEventListener('click', ()=> openModal(row.dataset.code, null));
+  });
+  const btnNovo = document.getElementById('btnNovo');
+  if(btnNovo) btnNovo.onclick = ()=> openModal(null, '');
+
+  const searchBox = document.getElementById('searchBox');
+  const filterCat = document.getElementById('filterCat');
+  const filterStatus = document.getElementById('filterStatus');
+  function applyFilter(){
+    let list = Object.values(ativos);
+    const q = (searchBox?.value||'').toLowerCase();
+    if(q) list = list.filter(a=> (a.descricao+a.codigo+a.localizacao+(a.responsavel||'')).toLowerCase().includes(q));
+    if(filterCat?.value) list = list.filter(a=>a.categoria===filterCat.value);
+    if(filterStatus?.value) list = list.filter(a=>a.status===filterStatus.value);
+    document.getElementById('tableWrap').innerHTML = tableHtml(list);
+    document.querySelectorAll('.tbl-row').forEach(row=>{
+      row.addEventListener('click', ()=> openModal(row.dataset.code, null));
+    });
+  }
+  if(searchBox){ searchBox.addEventListener('input', applyFilter); filterCat.addEventListener('change', applyFilter); filterStatus.addEventListener('change', applyFilter); }
+
+  const btnExport = document.getElementById('btnExport');
+  if(btnExport) btnExport.onclick = exportExcel;
+
+  if(document.getElementById('f_codigo') && currentPage==='cadastrar'){
+    document.getElementById('f_codigo').addEventListener('input', (e)=>drawBarcode(e.target.value));
+    drawBarcode('');
+    document.getElementById('btnPrintLabel').onclick = ()=>printLabel(document.getElementById('f_codigo').value, document.getElementById('f_descricao').value);
+    // reuse the same save flow but without modal buttons; add a save button dynamically
+    const panel = document.getElementById('content').querySelector('.panel');
+    if(!document.getElementById('btnSaveCadastro')){
+      const div = document.createElement('div');
+      div.style.marginTop='16px';
+      div.innerHTML = `<button class="btn btn-primary" id="btnSaveCadastro">Salvar Ativo</button>`;
+      panel.appendChild(div);
+      document.getElementById('btnSaveCadastro').onclick = async ()=>{
+        editingCode = null;
+        await onSaveForm();
+        render();
+      };
+    }
+  }
+}
+
+function exportExcel(){
+  const list = Object.values(ativos);
+  const rows = list.map(a=>({
+    'Código':a.codigo,'Descrição':a.descricao,'Categoria':a.categoria,'Marca/Modelo':a.marca,
+    'Nº Série':a.numeroSerie,'Localização':a.localizacao,'Responsável':a.responsavel,
+    'Data Aquisição':a.dataAquisicao,'Valor':a.valor,'Status':a.status,'Observações':a.observacoes,
+    'Última Conferência': a.ultimaConferencia? new Date(a.ultimaConferencia).toLocaleString('pt-BR'):''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Ativos");
+  XLSX.writeFile(wb, "ativos_kolecti.xlsx");
+}
+
+loadAll();
+setInterval(()=>loadAll(true), 20000);
+document.getElementById('btnRefresh').addEventListener('click', ()=>{ toast('Atualizando...'); loadAll(); });
+</script>
+</body>
+</html>
