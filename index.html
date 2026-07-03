@@ -628,7 +628,7 @@ function exportExcel(){
 }
 
 loadAll();
-setInterval(()=>loadAll(true), 20000);
+setInterval(()=>loadAll(true), 50000);
 document.getElementById('btnRefresh').addEventListener('click', ()=>{ toast('Atualizando...'); loadAll(); });
 </script>
 </body>
