@@ -135,7 +135,21 @@ tr.tbl-row:hover{background:#FAFAF7;cursor:pointer;}
     <div class="scanbar">
       <div class="scanbar-inner" id="scanWrap">
         <div class="scan-dot" id="scanDot"></div>
-        <input id="scanInput" type="text" placeholder="Clique aqui e escaneie o código de barras (ou digite o código e Enter)" autocomplete="off">
+        <div style="display:flex;align-items:center;gap:8px;flex:1;">
+
+    <input id="scanInput"
+      type="text"
+placeholder="Clique aqui e escaneie o código..."
+           autocomplete="off"
+           style="flex:1;">
+    <button
+        id="btnCamera"
+        class="btn btn-primary"
+        type="button">
+        📷
+    </button>
+
+</div>
         <div class="scan-hint" id="scanHint">aguardando leitura…</div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0;">
           <button class="btn btn-ghost btn-sm" id="btnRefresh" type="button" style="color:#C8D2C6;border-color:#3A473D; width:100%;">↻ Atualizar</button>
