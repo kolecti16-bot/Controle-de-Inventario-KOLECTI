@@ -648,7 +648,21 @@ function exportExcel(){
 }
 
 // ---------- LÓGICA DE CÂMERA (ZXING) ----------
-const codeReader = new ZXing.BrowserMultiFormatReader();
+// ---------- LÓGICA DE CÂMERA OTIMIZADA (ZXING) ----------
+// Criamos um mapa indicando exatamente quais formatos de código de barras queremos ler
+const hints = new Map();
+const formats = [
+  ZXing.BarcodeFormat.CODE_128,
+  ZXing.BarcodeFormat.EAN_13,
+  ZXing.BarcodeFormat.EAN_8,
+  ZXing.BarcodeFormat.CODE_39,
+  ZXing.BarcodeFormat.QR_CODE // Mantém o QR code por garantia
+];
+hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+hints.set(ZXing.DecodeHintType.TRY_HARDER, true); // Força o leitor a processar imagens com menos foco
+
+// Inicializa o leitor aplicando as configurações de foco em código de barras
+const codeReader = new ZXing.BrowserMultiFormatReader(hints);
 
 async function openCamera(){
   try{
@@ -659,16 +673,17 @@ async function openCamera(){
     
     // Procura por câmeras traseiras para facilitar o escaneamento de campo
     for(const d of devices){
-      if(d.label.toLowerCase().includes("back") || d.label.toLowerCase().includes("traseira")){
+      if(d.label.toLowerCase().includes("back") || d.label.toLowerCase().includes("traseira") || d.label.toLowerCase().includes("ambiente")){
         cameraId = d.deviceId;
       }
     }
     
+    // Inicia a leitura contínua de vídeo com as configurações otimizadas
     codeReader.decodeFromVideoDevice(cameraId, video, (result, error)=>{
       if(result){
         closeCamera();
         document.getElementById('scanInput').value = result.text;
-        handleScan(result.text);
+        handleScan(result.text); // Dispara a busca do ativo ou abre cadastro
       }
     });
   }catch(err){
@@ -679,13 +694,12 @@ async function openCamera(){
 
 function closeCamera(){
   document.getElementById("cameraOverlay").classList.remove("show");
-  codeReader.reset();
+  codeReader.reset(); // Desliga a câmera para não gastar bateria
 }
 
 // Configura os eventos dos botões de câmera nativamente na página
 document.getElementById("btnCamera").addEventListener("click", openCamera);
 document.getElementById("btnCloseCamera").addEventListener("click", closeCamera);
-
 loadAll();
 setInterval(()=>loadAll(true), 80000);
 document.getElementById('btnRefresh').addEventListener('click', ()=>{ toast('Atualizando...'); loadAll(); });
