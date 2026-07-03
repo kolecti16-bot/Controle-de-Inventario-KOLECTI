@@ -121,7 +121,8 @@ tr.tbl-row:hover{background:#FAFAF7;cursor:pointer;}
 
   <div class="sidebar">
     <div class="brand" style="padding: 0 8px 8px; margin-top: -10px;">
-  <img src="LOGOTIPO BRANCO RGB.png" alt="Kolecti" style="max-width: 140px; height: auto;">
+      <img src="LOGOTIPO BRANCO RGB.png" alt="Kolecti" style="max-width: 140px; height: auto;">
+    </div>
     <div class="brand-sub">Controle Patrimonial</div>
     <div class="nav-item active" data-page="dashboard"><span class="nav-icon">◆</span>Dashboard</div>
     <div class="nav-item" data-page="lista"><span class="nav-icon">≡</span>Todos os Ativos</div>
@@ -137,9 +138,9 @@ tr.tbl-row:hover{background:#FAFAF7;cursor:pointer;}
         <input id="scanInput" type="text" placeholder="Clique aqui e escaneie o código de barras (ou digite o código e Enter)" autocomplete="off">
         <div class="scan-hint" id="scanHint">aguardando leitura…</div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0;">
-  <button class="btn btn-ghost btn-sm" id="btnRefresh" type="button" style="color:#C8D2C6;border-color:#3A473D; width:100%;">↻ Atualizar</button>
-  <div id="lastUpdateText" style="font-size:10px; color:#7C8A7C; font-family:var(--mono); white-space:nowrap;">atualizando...</div>
-</div>
+          <button class="btn btn-ghost btn-sm" id="btnRefresh" type="button" style="color:#C8D2C6;border-color:#3A473D; width:100%;">↻ Atualizar</button>
+          <div id="lastUpdateText" style="font-size:10px; color:#7C8A7C; font-family:var(--mono); white-space:nowrap;">atualizando...</div>
+        </div>
       </div>
     </div>
 
@@ -180,6 +181,9 @@ function normalizeItem(obj){
 }
 
 async function loadAll(silent){
+  const elLastUpdate = document.getElementById('lastUpdateText');
+  if (elLastUpdate) elLastUpdate.textContent = 'atualizando...';
+  
   try{
     const res = await fetch(SHEET_URL, {method:'GET'});
     const json = await res.json();
@@ -192,7 +196,13 @@ async function loadAll(silent){
     }
     ativos = novo;
     render();
+    
+    if (elLastUpdate) {
+      const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      elLastUpdate.textContent = 'atualizado às ' + hora;
+    }
   }catch(e){
+    if (elLastUpdate) elLastUpdate.textContent = 'falha na conexão';
     if(!silent) toast('Não foi possível conectar à planilha do Google.');
   }
 }
