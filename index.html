@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>Controle de Ativos</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/JsBarcode/3.11.5/JsBarcode.all.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@latest"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
@@ -645,5 +646,46 @@ loadAll();
 setInterval(()=>loadAll(true), 80000);
 document.getElementById('btnRefresh').addEventListener('click', ()=>{ toast('Atualizando...'); loadAll(); });
 </script>
+  <div class="overlay" id="cameraOverlay">
+
+    <div class="modal" style="max-width:700px">
+
+        <h3>Escaneie o Código</h3>
+
+        <video
+
+            id="cameraVideo"
+
+            autoplay
+
+            playsinline
+
+            style="
+
+                width:100%;
+
+                border-radius:8px;
+
+                background:#000;">
+
+        </video>
+
+        <div style="margin-top:15px;text-align:right">
+
+            <button
+
+                class="btn btn-ghost"
+
+                id="btnCloseCamera">
+
+                Fechar
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
 </body>
 </html>
