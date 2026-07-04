@@ -109,6 +109,17 @@ tr.tbl-row:hover{background:#FAFAF7;cursor:pointer;}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:12px 18px;border-radius:8px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.2);z-index:100;opacity:0;transform:translateY(10px);transition:.2s;}
 .toast.show{opacity:1;transform:translateY(0);}
 
+.camera-wrap{position:relative;border-radius:8px;overflow:hidden;background:#000;}
+.camera-wrap video{width:100%;display:block;}
+.scan-frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:82%;max-width:360px;height:130px;border-radius:12px;box-shadow:0 0 0 2000px rgba(0,0,0,.45);pointer-events:none;}
+.scan-frame::before,.scan-frame::after,.scan-frame i::before,.scan-frame i::after{content:'';position:absolute;width:26px;height:26px;border:3px solid #22c55e;}
+.scan-frame::before{top:-3px;left:-3px;border-right:none;border-bottom:none;border-radius:8px 0 0 0;}
+.scan-frame::after{top:-3px;right:-3px;border-left:none;border-bottom:none;border-radius:0 8px 0 0;}
+.scan-frame i::before{bottom:-3px;left:-3px;border-right:none;border-top:none;border-radius:0 0 0 8px;}
+.scan-frame i::after{bottom:-3px;right:-3px;border-left:none;border-top:none;border-radius:0 0 8px 0;}
+.scan-line{position:absolute;left:4%;right:4%;height:2px;top:8%;background:#22c55e;box-shadow:0 0 8px 1px #22c55e;animation:scanmove 1.8s ease-in-out infinite;}
+@keyframes scanmove{0%{top:8%}50%{top:92%}100%{top:8%}}
+.scan-hint{text-align:center;color:#888;font-size:13px;margin-top:10px;}
 .hidden{display:none !important;}
 @media print{
   body *{visibility:hidden;}
@@ -159,8 +170,14 @@ tr.tbl-row:hover{background:#FAFAF7;cursor:pointer;}
 <div class="overlay" id="cameraOverlay">
     <div class="modal" style="max-width:700px">
         <h3>Escaneie o Código</h3>
-        <video id="cameraVideo" autoplay playsinline style="width:100%; border-radius:8px; background:#000;"></video>
-        <div style="margin-top:15px;text-align:right">
+        <div class="camera-wrap">
+          <video id="cameraVideo" autoplay playsinline muted></video>
+          <div class="scan-frame"><i></i></div>
+          <div class="scan-line"></div>
+        </div>
+        <p class="scan-hint">Posicione o código de barras dentro do quadro verde, preenchendo toda a largura</p>
+        <div style="margin-top:15px;display:flex;justify-content:space-between;align-items:center">
+            <button class="btn btn-ghost hidden" id="btnTorch" type="button">💡 Lanterna</button>
             <button class="btn btn-ghost" id="btnCloseCamera">Fechar</button>
         </div>
     </div>
@@ -454,7 +471,7 @@ function formHtml(existing, prefillCode){
       <div class="full"><label>Descrição</label><input type="text" id="f_descricao" value="${a.descricao}" placeholder="ex: Notebook Dell Latitude 5440"></div>
       <div><label>Marca / Modelo</label><input type="text" id="f_marca" value="${a.marca||''}"></div>
       <div><label>Número de série</label><input type="text" id="f_serie" value="${a.numeroSerie||''}"></div>
-      <div><label>Localização / Setor</label><input type="text" id="f_local" value="${a.localizacao||''}" placeholder="ex: Escritório Três Barras - RH"></div>
+      <div><label>Localização / Setor</label><input type="text" id="f_local" value="${a.localizacao||''}" placeholder="ex: Escritório Videira - RH"></div>
       <div><label>Responsável</label><input type="text" id="f_resp" value="${a.responsavel||''}"></div>
       <div><label>Data de aquisição</label><input type="date" id="f_data" value="${a.dataAquisicao||''}"></div>
       <div><label>Valor (R$)</label><input type="number" step="0.01" id="f_valor" value="${a.valor||''}"></div>
@@ -669,42 +686,86 @@ hints.set(ZXing.DecodeHintType.TRY_HARDER, true); // Força o leitor a processar
 // Inicializa o leitor aplicando as configurações de foco em código de barras
 const codeReader = new ZXing.BrowserMultiFormatReader(hints);
 
+let currentTrack = null;
+let torchOn = false;
+
 async function openCamera(){
   try{
     document.getElementById("cameraOverlay").classList.add("show");
     const video = document.getElementById("cameraVideo");
     const devices = await codeReader.listVideoInputDevices();
     let cameraId = devices[0].deviceId;
-    
+
     // Procura por câmeras traseiras para facilitar o escaneamento de campo
     for(const d of devices){
       if(d.label.toLowerCase().includes("back") || d.label.toLowerCase().includes("traseira") || d.label.toLowerCase().includes("ambiente")){
         cameraId = d.deviceId;
       }
     }
-    
+
+    // Constraints otimizadas: resolução maior + foco contínuo (ajuda muito no foco de código de barras de perto)
+    const constraints = {
+      video: {
+        deviceId: { exact: cameraId },
+        facingMode: "environment",
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        advanced: [{ focusMode: "continuous" }]
+      }
+    };
+
     // Inicia a leitura contínua de vídeo com as configurações otimizadas
-    codeReader.decodeFromVideoDevice(cameraId, video, (result, error)=>{
+    codeReader.decodeFromConstraints(constraints, video, (result, error)=>{
       if(result){
         closeCamera();
         document.getElementById('scanInput').value = result.text;
         handleScan(result.text); // Dispara a busca do ativo ou abre cadastro
       }
     });
+
+    // Habilita o botão de lanterna se o dispositivo suportar
+    setTimeout(()=>{
+      const stream = video.srcObject;
+      if(stream){
+        currentTrack = stream.getVideoTracks()[0];
+        const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
+        const btnTorch = document.getElementById('btnTorch');
+        if(caps.torch){
+          btnTorch.classList.remove('hidden');
+          torchOn = false;
+        } else {
+          btnTorch.classList.add('hidden');
+        }
+      }
+    }, 600);
   }catch(err){
     alert("Erro na câmera: " + err.message);
     console.error(err);
   }
 }
 
+async function toggleTorch(){
+  if(!currentTrack) return;
+  try{
+    torchOn = !torchOn;
+    await currentTrack.applyConstraints({ advanced: [{ torch: torchOn }] });
+  }catch(err){
+    console.error("Lanterna não suportada:", err);
+  }
+}
+
 function closeCamera(){
   document.getElementById("cameraOverlay").classList.remove("show");
   codeReader.reset(); // Desliga a câmera para não gastar bateria
+  currentTrack = null;
+  torchOn = false;
+  document.getElementById('btnTorch').classList.add('hidden');
 }
 
 // Configura os eventos dos botões de câmera nativamente na página
 document.getElementById("btnCamera").addEventListener("click", openCamera);
 document.getElementById("btnCloseCamera").addEventListener("click", closeCamera);
+document.getElementById("btnTorch").addEventListener("click", toggleTorch);
 loadAll();
 setInterval(()=>loadAll(true), 600000); // 10 minutos
 document.getElementById('btnRefresh').addEventListener('click', ()=>{ toast('Atualizando...'); loadAll(); });
